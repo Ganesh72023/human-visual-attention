@@ -9,7 +9,11 @@ const envSchema = zod_1.z.object({
     JWT_SECRET: zod_1.z.string().min(16),
     JWT_EXPIRES_IN: zod_1.z.string().optional().default("1h"),
     CORS_ORIGIN: zod_1.z.string().optional().default("http://localhost:5173"),
-    ML_SERVICE_URL: zod_1.z.string().optional().default("http://localhost:8000"),
+    // ML service config:
+    // Prefer ML_SERVICE_URL. If unset, we can build it from ML_SERVICE_SCHEME + ML_SERVICE_HOSTPORT.
+    ML_SERVICE_URL: zod_1.z.string().optional(),
+    ML_SERVICE_SCHEME: zod_1.z.string().optional().default("http"),
+    ML_SERVICE_HOSTPORT: zod_1.z.string().optional(),
     UPLOAD_DIR: zod_1.z.string().optional().default("uploads"),
     MAX_IMAGE_MB: zod_1.z.coerce.number().optional().default(25),
     MAX_VIDEO_MB: zod_1.z.coerce.number().optional().default(200),

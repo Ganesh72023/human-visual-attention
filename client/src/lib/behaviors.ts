@@ -1,4 +1,4 @@
-export type BehaviorKey = "face_touching" | "leg_shaking" | "fidgeting" | "slouching";
+export type BehaviorKey = "face_touching" | "leg_shaking" | "fidgeting" | "slouching" | "legs_not_visible";
 
 export const BEHAVIOR_META: Record<
   BehaviorKey,
@@ -33,6 +33,12 @@ export const BEHAVIOR_META: Record<
     meaning: "A fatigued or disengaged posture can reduce alertness and increase perceived effort.",
     userTip: "Reset ergonomics: sit tall, shoulders relaxed, screen at eye level. Take a sip of water.",
   },
+  legs_not_visible: {
+    label: "Legs not visible",
+    color: "rgba(163,163,163,0.85)",
+    meaning: "Lower body is mostly out of frame. Leg-based cues (like leg shaking) may be unavailable or unreliable.",
+    userTip: "If you want leg-behavior analysis, re-record with ankles/knees visible in frame.",
+  },
 };
 
 export function prettyBehavior(key: string) {
@@ -54,4 +60,3 @@ export function behaviorTip(key: string) {
   const k = key as BehaviorKey;
   return BEHAVIOR_META[k]?.userTip ?? "Try a short pause and a single clear next step.";
 }
-

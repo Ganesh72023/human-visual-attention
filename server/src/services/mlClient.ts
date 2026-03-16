@@ -16,7 +16,10 @@ export interface MlAnalyzeResponse {
 
 export async function analyzeWithMlService(filePath: string, fileType: "image" | "video"): Promise<MlAnalyzeResponse> {
   const env = loadEnv();
-  const url = new URL("/analyze", env.ML_SERVICE_URL).toString();
+  const base =
+    env.ML_SERVICE_URL ||
+    (env.ML_SERVICE_HOSTPORT ? `${env.ML_SERVICE_SCHEME}://${env.ML_SERVICE_HOSTPORT}` : "http://localhost:8000");
+  const url = new URL("/analyze", base).toString();
 
   const form = new FormData();
   form.append("file", fs.createReadStream(filePath), { filename: path.basename(filePath) });
@@ -25,4 +28,3 @@ export async function analyzeWithMlService(filePath: string, fileType: "image" |
   const res = await axios.post(url, form, { headers: form.getHeaders(), timeout: 300_000 });
   return res.data as MlAnalyzeResponse;
 }
-

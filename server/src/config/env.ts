@@ -7,7 +7,11 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(16),
   JWT_EXPIRES_IN: z.string().optional().default("1h"),
   CORS_ORIGIN: z.string().optional().default("http://localhost:5173"),
-  ML_SERVICE_URL: z.string().optional().default("http://localhost:8000"),
+  // ML service config:
+  // Prefer ML_SERVICE_URL. If unset, we can build it from ML_SERVICE_SCHEME + ML_SERVICE_HOSTPORT.
+  ML_SERVICE_URL: z.string().optional(),
+  ML_SERVICE_SCHEME: z.string().optional().default("http"),
+  ML_SERVICE_HOSTPORT: z.string().optional(),
   UPLOAD_DIR: z.string().optional().default("uploads"),
   MAX_IMAGE_MB: z.coerce.number().optional().default(25),
   MAX_VIDEO_MB: z.coerce.number().optional().default(200),
@@ -27,4 +31,3 @@ export function loadEnv(): Env {
   }
   return parsed.data;
 }
-

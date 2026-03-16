@@ -30,12 +30,22 @@ def _torso_slouch_score(pose: np.ndarray) -> float:
     # Returns the torso angle in degrees away from vertical.
     if pose.shape[0] <= 24:
         return 0.0
-    shoulder = (pose[11] + pose[12]) / 2.0
-    hip = (pose[23] + pose[24]) / 2.0
+    pose_xy = pose[:, :2]
+    shoulder = (pose_xy[11] + pose_xy[12]) / 2.0
+    hip = (pose_xy[23] + pose_xy[24]) / 2.0
     v = shoulder - hip  # vector pointing up
     # vertical vector is (0, -1); measure angle to vertical axis
     angle = np.degrees(np.arctan2(abs(v[0]), abs(v[1]) + 1e-6))
     return float(angle)
+
+
+def _ankles_visible(pose: Optional[np.ndarray], thr: float = 0.55) -> bool:
+    if pose is None or pose.shape[0] <= 28 or pose.shape[1] < 3:
+        return False
+    vis_l = float(pose[27, 2])
+    vis_r = float(pose[28, 2])
+    return (vis_l >= thr) or (vis_r >= thr)
+
 
 def detect_behaviors_from_landmarks(sig: MediapipeSignals) -> list[str]:
     behaviors: set[str] = set()
@@ -70,9 +80,11 @@ def detect_behaviors_from_landmarks(sig: MediapipeSignals) -> list[str]:
     # MediaPipe pose landmarks index: 27/28 are left/right ankle.
     if pose is not None and sig.prev is not None and sig.prev.pose_landmarks is not None:
         prev_pose = sig.prev.pose_landmarks
-        if pose.shape[0] > 28 and prev_pose.shape[0] > 28:
-            cur_y = float((pose[27, 1] + pose[28, 1]) / 2.0)
-            prev_y = float((prev_pose[27, 1] + prev_pose[28, 1]) / 2.0)
+        if _ankles_visible(pose) and _ankles_visible(prev_pose):
+            pose_xy = pose[:, :2]
+            prev_xy = prev_pose[:, :2]
+            cur_y = float((pose_xy[27, 1] + pose_xy[28, 1]) / 2.0)
+            prev_y = float((prev_xy[27, 1] + prev_xy[28, 1]) / 2.0)
             if abs(cur_y - prev_y) > 8.0:
                 behaviors.add("leg_shaking")
 
@@ -83,3 +95,7 @@ def detect_behaviors_from_landmarks(sig: MediapipeSignals) -> list[str]:
             behaviors.add("slouching")
 
     return sorted(behaviors)
+
+
+def legs_visible(sig: MediapipeSignals) -> bool:
+    return _ankles_visible(sig.pose_landmarks)

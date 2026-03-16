@@ -14,11 +14,13 @@ services:
         sync: false
       - key: CORS_ORIGIN
         sync: false
-      - key: ML_SERVICE_URL
+      - key: ML_SERVICE_SCHEME
+        value: http
+      - key: ML_SERVICE_HOSTPORT
         fromService:
           name: hvaa-ml-service
           type: web
-          property: url
+          property: hostport
 
   - type: web
     name: hvaa-ml-service
@@ -39,4 +41,3 @@ services:
     envVars:
       - key: VITE_API_URL
         sync: false
-

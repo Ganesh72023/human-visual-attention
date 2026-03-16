@@ -1,3 +1,5 @@
+name: human-visual-attention
+
 services:
   mongodb:
     image: mongo:7

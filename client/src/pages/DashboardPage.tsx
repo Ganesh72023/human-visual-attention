@@ -57,6 +57,34 @@ export function DashboardPage() {
   const lastUpload = summary?.recent?.[0] ?? null;
   const lastBehaviors: string[] = lastUpload?.analysis?.behaviors ?? [];
 
+  function EmotionTooltip(props: any) {
+    if (!props.active || !props.payload?.length) return null;
+    const p = props.payload[0]?.payload;
+    const emotion = String(p?.name ?? "").toLowerCase();
+    const count = Number(p?.value ?? 0);
+    return (
+      <div className="rounded-2xl border border-white/10 bg-black/80 px-4 py-3 text-xs text-white/85 shadow-glow">
+        <div className="font-semibold capitalize">{emotion || "emotion"}</div>
+        <div className="mt-1 text-white/70">Count: {count} upload{count === 1 ? "" : "s"}</div>
+      </div>
+    );
+  }
+
+  function BehaviorTooltip(props: any) {
+    if (!props.active || !props.payload?.length) return null;
+    const p = props.payload[0]?.payload;
+    const key = String(p?.key ?? "");
+    const label = key ? prettyBehavior(key) : "Behavior";
+    const count = Number(p?.value ?? 0);
+    return (
+      <div className="rounded-2xl border border-white/10 bg-black/80 px-4 py-3 text-xs text-white/85 shadow-glow">
+        <div className="font-semibold">{label}</div>
+        <div className="mt-1 text-white/70">Count: {count} occurrence{count === 1 ? "" : "s"}</div>
+        {key ? <div className="mt-2 text-white/65">{behaviorMeaning(key)}</div> : null}
+      </div>
+    );
+  }
+
   async function onUpload(e: FormEvent) {
     e.preventDefault();
     if (!file) return;
@@ -119,7 +147,7 @@ export function DashboardPage() {
                     <Cell key={entry.name} fill={EMOTION_COLORS[entry.emotion]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: any) => [`${value}`, "uploads"]} />
+                <Tooltip content={<EmotionTooltip />} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -139,18 +167,11 @@ export function DashboardPage() {
           </div>
           <div className="mt-4 h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={behaviorData}>
+              <BarChart data={behaviorData} barCategoryGap={18}>
                 <XAxis dataKey="name" stroke="rgba(255,255,255,0.35)" tick={{ fill: "rgba(255,255,255,0.65)" }} />
                 <YAxis stroke="rgba(255,255,255,0.35)" tick={{ fill: "rgba(255,255,255,0.65)" }} />
-                <Tooltip
-                  formatter={(value: any) => [`${value}`, "detections"]}
-                  labelFormatter={(_label: any, payload: any) => {
-                    const key = payload?.[0]?.payload?.key as string | undefined;
-                    if (!key) return "Behavior";
-                    return `${prettyBehavior(key)}: ${behaviorMeaning(key)}`;
-                  }}
-                />
-                <Bar dataKey="value" radius={[10, 10, 0, 0]}>
+                <Tooltip content={<BehaviorTooltip />} />
+                <Bar dataKey="value" radius={[10, 10, 0, 0]} barSize={18}>
                   {behaviorData.map((entry) => (
                     <Cell key={entry.key} fill={behaviorColor(entry.key)} />
                   ))}

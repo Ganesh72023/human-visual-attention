@@ -11,7 +11,9 @@ const path_1 = __importDefault(require("path"));
 const env_1 = require("../config/env");
 async function analyzeWithMlService(filePath, fileType) {
     const env = (0, env_1.loadEnv)();
-    const url = new URL("/analyze", env.ML_SERVICE_URL).toString();
+    const base = env.ML_SERVICE_URL ||
+        (env.ML_SERVICE_HOSTPORT ? `${env.ML_SERVICE_SCHEME}://${env.ML_SERVICE_HOSTPORT}` : "http://localhost:8000");
+    const url = new URL("/analyze", base).toString();
     const form = new form_data_1.default();
     form.append("file", fs_1.default.createReadStream(filePath), { filename: path_1.default.basename(filePath) });
     form.append("fileType", fileType);

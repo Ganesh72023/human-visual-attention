@@ -7,7 +7,7 @@ from typing import Any, Optional
 import cv2
 import numpy as np
 
-from .signals import detect_behaviors_from_landmarks
+from .signals import detect_behaviors_from_landmarks, legs_visible
 from .vision import (
     deepface_emotion_on_bgr,
     extract_primary_face_bgr,
@@ -84,6 +84,7 @@ def analyze_video_file(path: str, max_frames: int = 60, frame_stride: int = 10) 
     timeline: list[TimelinePoint] = []
     all_behaviors: set[str] = set()
     last_signals: Optional[Any] = None
+    legs_visible_frames = 0
 
     emotions_for_majority: list[str] = []
     confidences_for_majority: list[float] = []
@@ -114,6 +115,8 @@ def analyze_video_file(path: str, max_frames: int = 60, frame_stride: int = 10) 
 
             for b in detect_behaviors_from_landmarks(signals):
                 all_behaviors.add(b)
+            if legs_visible(signals):
+                legs_visible_frames += 1
 
             sampled += 1
             frame_index += 1
@@ -128,6 +131,12 @@ def analyze_video_file(path: str, max_frames: int = 60, frame_stride: int = 10) 
     else:
         majority = "neutral"
         confidence = 0.0
+
+    # If we rarely/never see ankles, explicitly tell the caller so UI can explain limitations.
+    if sampled > 0:
+        visible_ratio = float(legs_visible_frames) / float(sampled)
+        if visible_ratio < 0.25:
+            all_behaviors.add("legs_not_visible")
 
     return {
         "emotion": majority,

@@ -18,7 +18,7 @@ class MediapipeSignals:
     face_bbox: Optional[tuple[int, int, int, int]]  # x, y, w, h
     face_landmarks: Optional[np.ndarray]  # (N,2) in pixels
     hand_landmarks: list[np.ndarray]  # list of (N,2) in pixels
-    pose_landmarks: Optional[np.ndarray]  # (N,2) in pixels
+    pose_landmarks: Optional[np.ndarray]  # (N,3) in pixels: x,y,visibility
     prev: Optional["MediapipeSignals"] = None
 
     def with_prev(self, prev: "MediapipeSignals") -> "MediapipeSignals":
@@ -107,7 +107,7 @@ def mediapipe_signals_on_bgr(bgr: np.ndarray) -> MediapipeSignals:
         if out.pose_landmarks:
             pts = []
             for lm in out.pose_landmarks.landmark:
-                pts.append([lm.x * w, lm.y * h])
+                pts.append([lm.x * w, lm.y * h, float(getattr(lm, "visibility", 0.0))])
             pose_lm = np.array(pts, dtype=np.float32)
 
     return MediapipeSignals(face_bbox=face_bbox, face_landmarks=face_lm, hand_landmarks=hands_lm, pose_landmarks=pose_lm)
