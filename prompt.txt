@@ -1,0 +1,154 @@
+Create a full stack MERN project called "Human Visual Attention Analyzer".
+
+TECH STACK
+- Frontend: React with TailwindCSS and Framer Motion animations
+- Backend: Node.js + Express
+- Database: MongoDB
+- ML Service: Python using TensorFlow, DeepFace, and MediaPipe
+- Containerization: Docker + Docker Compose
+- Hosting ready for Render
+
+PROJECT GOAL
+
+The application analyzes human visual attention and emotional state from uploaded images and videos using machine learning models and provides cognitive science based suggestions.
+
+FEATURES
+
+1. Landing Page
+- Navbar at the top
+- Left side: description of the project and cognitive science explanation
+- Right side: Login and Signup buttons
+- Animated UI using Framer Motion
+- Responsive design
+
+2. Authentication
+- JWT authentication
+- User signup/login
+- Separate Admin login
+
+3. User Roles
+User:
+- Upload image or video
+- View analysis report
+- View previous uploads
+
+Admin:
+- Delete users
+- Delete uploaded data
+- View system analytics
+- Export dataset for research
+
+4. Upload System
+Users can upload:
+- Image
+- Video
+
+Store files in a server uploads folder and metadata in MongoDB.
+
+5. ML Analysis Service
+
+Create a Python microservice that:
+- Detects emotion from faces (happy, sad, angry, neutral, nervous)
+- Detects body posture using MediaPipe
+- Detects behaviors such as leg shaking or face touching
+- Processes video frames and returns emotion timeline
+
+API should return:
+- emotion
+- confidence score
+- detected behaviors
+- cognitive state
+
+6. Cognitive Suggestions Engine
+
+Based on detected emotion and behavior generate suggestions such as:
+
+Example:
+Emotion: Nervous
+Suggestions:
+- Try deep breathing
+- Reduce cognitive load
+- Take a short break
+- Practice grounding techniques
+
+7. Dashboard
+
+After login show:
+- Upload history
+- Emotion statistics
+- Behavior detection stats
+
+Include charts using Recharts.
+
+8. Video Emotion Timeline
+
+For videos show emotion changes over time using a line graph.
+
+9. Attention Heatmap
+
+Generate visual heatmaps using GradCAM to show attention regions on the face.
+
+10. Admin Panel
+
+Admin dashboard should allow:
+- view users
+- delete users
+- delete uploads
+- download dataset CSV
+- view system stats
+
+11. Database Models
+
+User
+- name
+- email
+- password
+- role (user/admin)
+
+Upload
+- userId
+- fileType
+- filePath
+- emotion
+- behaviors
+- suggestions
+- createdAt
+
+12. Docker Setup
+
+Create:
+- Dockerfile for frontend
+- Dockerfile for backend
+- Dockerfile for ML service
+
+Create docker-compose.yml that starts:
+
+- frontend
+- backend
+- ml-service
+- mongodb
+
+Running command:
+
+docker-compose up --build
+
+13. Folder Structure
+
+human-visual-attention
+/client
+/server
+/ml-service
+/docker
+
+14. UI Design
+
+Make UI modern and visually appealing with:
+- animations
+- gradient backgrounds
+- smooth transitions
+
+15. Render Deployment
+
+Add configuration so backend and frontend can easily deploy to Render.
+
+Generate the entire project structure and code files.
