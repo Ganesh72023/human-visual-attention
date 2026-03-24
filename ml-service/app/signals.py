@@ -25,6 +25,22 @@ def _min_distance(a: np.ndarray, b: np.ndarray) -> float:
     dist = np.sqrt(np.sum(d * d, axis=2))
     return float(np.min(dist))
 
+
+def _min_distance_to_bbox(points: np.ndarray, bbox: tuple[int, int, int, int]) -> float:
+    # Minimum Euclidean distance from any point to the rectangle border (0 if inside).
+    # bbox: x,y,w,h in pixels.
+    if points.size == 0:
+        return 1e9
+    x, y, w, h = bbox
+    x2 = x + w
+    y2 = y + h
+    px = points[:, 0]
+    py = points[:, 1]
+
+    dx = np.maximum(np.maximum(x - px, 0.0), px - x2)
+    dy = np.maximum(np.maximum(y - py, 0.0), py - y2)
+    return float(np.min(np.sqrt(dx * dx + dy * dy)))
+
 def _torso_slouch_score(pose: np.ndarray) -> float:
     # Uses shoulder midpoint (11,12) and hip midpoint (23,24).
     # Returns the torso angle in degrees away from vertical.
@@ -55,17 +71,24 @@ def detect_behaviors_from_landmarks(sig: MediapipeSignals) -> list[str]:
     pose = sig.pose_landmarks
 
     # Face touching heuristic: scale threshold by face size when bbox is available.
-    if face is not None and hands:
+    if hands:
         if sig.face_bbox is not None:
             _, _, w, h = sig.face_bbox
             face_diag = float(np.sqrt(float(w * w + h * h)))
             thr = max(18.0, 0.08 * face_diag)
         else:
             thr = 25.0
+
+        # Prefer landmarks when available; otherwise fall back to bbox proximity.
         for hand in hands:
-            if _min_distance(face, hand) < thr:
-                behaviors.add("face_touching")
-                break
+            if face is not None:
+                if _min_distance(face, hand) < thr:
+                    behaviors.add("face_touching")
+                    break
+            elif sig.face_bbox is not None:
+                if _min_distance_to_bbox(hand, sig.face_bbox) < thr:
+                    behaviors.add("face_touching")
+                    break
 
     # Fidgeting heuristic: hand motion between frames.
     if sig.prev is not None and sig.prev.hand_landmarks and hands:

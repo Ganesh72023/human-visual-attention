@@ -35,8 +35,12 @@ async def analyze(
     # Save to a temp file so downstream libs can open it reliably.
     suffix = os.path.splitext(file.filename or "")[1]
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        content = await file.read()
-        tmp.write(content)
+        # Important for videos: don't read the entire file into memory.
+        while True:
+            chunk = await file.read(1024 * 1024)  # 1MB
+            if not chunk:
+                break
+            tmp.write(chunk)
         tmp_path = tmp.name
 
     try:
@@ -45,7 +49,7 @@ async def analyze(
         else:
             result = analyze_video_file(
                 tmp_path,
-                max_frames=maxFrames if maxFrames is not None else 60,
+                max_frames=maxFrames if maxFrames is not None else 18,
                 frame_stride=frameStride if frameStride is not None else 10,
             )
         return result

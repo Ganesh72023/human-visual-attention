@@ -24,6 +24,11 @@ export async function analyzeWithMlService(filePath: string, fileType: "image" |
   const form = new FormData();
   form.append("file", fs.createReadStream(filePath), { filename: path.basename(filePath) });
   form.append("fileType", fileType);
+  if (fileType === "video") {
+    // Keep video analysis bounded and predictable for the UI.
+    form.append("maxFrames", "18");
+    form.append("frameStride", "10");
+  }
 
   const res = await axios.post(url, form, { headers: form.getHeaders(), timeout: 300_000 });
   return res.data as MlAnalyzeResponse;

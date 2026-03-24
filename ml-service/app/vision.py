@@ -26,6 +26,60 @@ class MediapipeSignals:
         return self
 
 
+@dataclass
+class MediapipeContext:
+    face_det: Any
+    face_mesh: Optional[Any]
+    hands: Any
+    pose: Any
+
+    def close(self) -> None:
+        # MediaPipe Solutions expose close() in addition to context-manager semantics.
+        try:
+            self.face_det.close()
+        except Exception:
+            pass
+        try:
+            if self.face_mesh is not None:
+                self.face_mesh.close()
+        except Exception:
+            pass
+        try:
+            self.hands.close()
+        except Exception:
+            pass
+        try:
+            self.pose.close()
+        except Exception:
+            pass
+
+
+def create_mediapipe_context(*, video_mode: bool, with_face_mesh: bool) -> MediapipeContext:
+    import mediapipe as mp  # type: ignore
+
+    face_det = mp.solutions.face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.5)
+    face_mesh = None
+    if with_face_mesh:
+        # FaceMesh is expensive; keep it off for video processing by default.
+        face_mesh = mp.solutions.face_mesh.FaceMesh(
+            static_image_mode=not video_mode,
+            max_num_faces=1,
+            refine_landmarks=False,
+            min_detection_confidence=0.5,
+        )
+    hands = mp.solutions.hands.Hands(
+        static_image_mode=not video_mode,
+        max_num_hands=2,
+        min_detection_confidence=0.5,
+    )
+    pose = mp.solutions.pose.Pose(
+        static_image_mode=not video_mode,
+        model_complexity=1,
+        min_detection_confidence=0.5,
+    )
+    return MediapipeContext(face_det=face_det, face_mesh=face_mesh, hands=hands, pose=pose)
+
+
 def map_emotion_to_5(label: str) -> str:
     l = (label or "").lower().strip()
     if l in ("happy",):
@@ -58,9 +112,13 @@ def deepface_emotion_on_bgr(bgr: np.ndarray) -> EmotionResult:
         return EmotionResult(dominant_emotion="neutral", confidence=0.0)
 
 
-def mediapipe_signals_on_bgr(bgr: np.ndarray) -> MediapipeSignals:
-    import mediapipe as mp  # type: ignore
-
+def mediapipe_signals_on_bgr(
+    bgr: np.ndarray,
+    *,
+    with_face_mesh: bool = True,
+    ctx: Optional[MediapipeContext] = None,
+    video_mode: bool = False,
+) -> MediapipeSignals:
     h, w = bgr.shape[:2]
     rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
 
@@ -69,9 +127,14 @@ def mediapipe_signals_on_bgr(bgr: np.ndarray) -> MediapipeSignals:
     hands_lm: list[np.ndarray] = []
     pose_lm: Optional[np.ndarray] = None
 
-    # Face detection (bbox)
-    with mp.solutions.face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.5) as face_det:
-        det = face_det.process(rgb)
+    local_ctx: Optional[MediapipeContext] = None
+    try:
+        if ctx is None:
+            local_ctx = create_mediapipe_context(video_mode=video_mode, with_face_mesh=with_face_mesh)
+            ctx = local_ctx
+
+        # Face detection (bbox)
+        det = ctx.face_det.process(rgb)
         if det.detections:
             rel = det.detections[0].location_data.relative_bounding_box
             x = int(rel.xmin * w)
@@ -80,20 +143,17 @@ def mediapipe_signals_on_bgr(bgr: np.ndarray) -> MediapipeSignals:
             bh = int(rel.height * h)
             face_bbox = (max(0, x), max(0, y), max(1, bw), max(1, bh))
 
-    # Face landmarks (for touch proximity) - smaller mesh for speed
-    with mp.solutions.face_mesh.FaceMesh(
-        static_image_mode=True, max_num_faces=1, refine_landmarks=False, min_detection_confidence=0.5
-    ) as face_mesh:
-        out = face_mesh.process(rgb)
-        if out.multi_face_landmarks:
-            pts = []
-            for lm in out.multi_face_landmarks[0].landmark:
-                pts.append([lm.x * w, lm.y * h])
-            face_lm = np.array(pts, dtype=np.float32)
+        # Face landmarks are expensive; we can skip them for video and rely on bbox for face-touching.
+        if with_face_mesh and ctx.face_mesh is not None:
+            out = ctx.face_mesh.process(rgb)
+            if out.multi_face_landmarks:
+                pts = []
+                for lm in out.multi_face_landmarks[0].landmark:
+                    pts.append([lm.x * w, lm.y * h])
+                face_lm = np.array(pts, dtype=np.float32)
 
-    # Hands
-    with mp.solutions.hands.Hands(static_image_mode=True, max_num_hands=2, min_detection_confidence=0.5) as hands:
-        out = hands.process(rgb)
+        # Hands
+        out = ctx.hands.process(rgb)
         if out.multi_hand_landmarks:
             for hand in out.multi_hand_landmarks:
                 pts = []
@@ -101,23 +161,34 @@ def mediapipe_signals_on_bgr(bgr: np.ndarray) -> MediapipeSignals:
                     pts.append([lm.x * w, lm.y * h])
                 hands_lm.append(np.array(pts, dtype=np.float32))
 
-    # Pose
-    with mp.solutions.pose.Pose(static_image_mode=True, model_complexity=1, min_detection_confidence=0.5) as pose:
-        out = pose.process(rgb)
+        # Pose
+        out = ctx.pose.process(rgb)
         if out.pose_landmarks:
             pts = []
             for lm in out.pose_landmarks.landmark:
                 pts.append([lm.x * w, lm.y * h, float(getattr(lm, "visibility", 0.0))])
             pose_lm = np.array(pts, dtype=np.float32)
+    finally:
+        if local_ctx is not None:
+            local_ctx.close()
 
     return MediapipeSignals(face_bbox=face_bbox, face_landmarks=face_lm, hand_landmarks=hands_lm, pose_landmarks=pose_lm)
 
 
 def extract_primary_face_bgr(bgr: np.ndarray) -> Optional[np.ndarray]:
     sig = mediapipe_signals_on_bgr(bgr)
-    if sig.face_bbox is None:
+    bbox = sig.face_bbox
+    if bbox is None and sig.face_landmarks is not None and sig.face_landmarks.size > 0:
+        h_img, w_img = bgr.shape[:2]
+        x0 = int(np.clip(np.min(sig.face_landmarks[:, 0]) - 12, 0, w_img - 1))
+        y0 = int(np.clip(np.min(sig.face_landmarks[:, 1]) - 12, 0, h_img - 1))
+        x1 = int(np.clip(np.max(sig.face_landmarks[:, 0]) + 12, 1, w_img))
+        y1 = int(np.clip(np.max(sig.face_landmarks[:, 1]) + 12, 1, h_img))
+        bbox = (x0, y0, max(1, x1 - x0), max(1, y1 - y0))
+    if bbox is None:
         return None
-    x, y, w, h = sig.face_bbox
+
+    x, y, w, h = bbox
     x2 = min(bgr.shape[1], x + w)
     y2 = min(bgr.shape[0], y + h)
     face = bgr[y:y2, x:x2]

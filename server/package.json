@@ -6,7 +6,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "seed:admin": "tsx src/scripts/seedAdmin.ts"
+    "seed:admin": "node -e \"const fs=require('fs'); const {spawnSync}=require('child_process'); if (fs.existsSync('dist/scripts/seedAdmin.js')) { require('./dist/scripts/seedAdmin.js'); } else { const r=spawnSync('tsx',['src/scripts/seedAdmin.ts'],{stdio:'inherit',shell:true}); process.exit(r.status??0); }\""
   },
   "keywords": [],
   "author": "",
